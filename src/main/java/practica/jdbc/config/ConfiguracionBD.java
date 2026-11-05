@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-public class ConfiguracionBaseDatos {
+public class ConfiguracionBD {
 
     private static final Properties propiedades = new Properties();
 
-    public ConfiguracionBaseDatos(){
-        try (InputStream archivoConfiguracion = ConfiguracionBaseDatos.class
+    public ConfiguracionBD(){
+        try (InputStream archivoConfiguracion = ConfiguracionBD.class
                 .getClassLoader()
                 .getResourceAsStream("application.properties")) {
 
