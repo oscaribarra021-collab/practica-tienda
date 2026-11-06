@@ -26,6 +26,10 @@ public class Main {
         } catch (SQLException e) {
 
             System.out.println("Error al conectar con la base de datos: " + e.getMessage());
+
+        } finally {
+
+            conexionBD.cerrarPool();
         }
 
 

@@ -55,6 +55,7 @@ public class ConexionBD {
 
     private HikariDataSource poolConexiones;
 
+    // LE DICE DE DÓNDE SACAR LOS DATOS AL POOL
     private void configurarPool() {
 
         HikariConfig configuracion = new HikariConfig();
@@ -91,5 +92,12 @@ public class ConexionBD {
         configuracion.setMinimumIdle(Integer.parseInt(configuracionBD.obtener("hikari.pool.minimo")));
 
         poolConexiones = new HikariDataSource(configuracion);
+    }
+
+    public void cerrarPool() {
+
+        if (poolConexiones != null) {
+            poolConexiones.close();
+        }
     }
 }
