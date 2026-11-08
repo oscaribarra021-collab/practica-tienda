@@ -106,4 +106,53 @@ public class ViniloDAO {
             sentencia.executeUpdate();
         }
     }
+
+    public int insertarConId(Vinilo vinilo) throws SQLException {
+
+        String sql = "INSERT INTO vinilo (id_album, referencia, color, precio) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+            sentencia.setInt(1, vinilo.getIdAlbum());
+            sentencia.setString(2, vinilo.getReferencia());
+            sentencia.setString(3, vinilo.getColor());
+            sentencia.setBigDecimal(4, vinilo.getPrecio());
+            sentencia.executeUpdate();
+
+            try (ResultSet claves = sentencia.getGeneratedKeys()) {
+                if (claves.next()) {
+                    return claves.getInt(1);
+                }
+            }
+        }
+
+        throw new SQLException("No se ha podido obtener el ID del vinilo");
+    }
+
+    public boolean estaActivo(int idVinilo) throws SQLException {
+
+        String sql = "SELECT activo FROM vinilo WHERE id_vinilo = ?";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idVinilo);
+
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                if (resultado.next()) {
+                    return resultado.getBoolean("activo");
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public void cambiarActivo(int idVinilo, boolean activo) throws SQLException {
+
+        String sql = "UPDATE vinilo SET activo = ? WHERE id_vinilo = ?";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setBoolean(1, activo);
+            sentencia.setInt(2, idVinilo);
+            sentencia.executeUpdate();
+        }
+    }
 }

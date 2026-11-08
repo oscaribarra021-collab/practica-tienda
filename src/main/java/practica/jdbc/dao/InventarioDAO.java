@@ -102,4 +102,32 @@ public class InventarioDAO {
             return filasAfectadas > 0;
         }
     }
+
+    public void insertar(int idVinilo, int stockActual) throws SQLException {
+
+        String sql = "INSERT INTO inventario (id_vinilo, stock_actual) VALUES (?, ?)";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idVinilo);
+            sentencia.setInt(2, stockActual);
+            sentencia.executeUpdate();
+        }
+    }
+
+    public boolean exigeControlStock(int idVinilo) throws SQLException {
+
+        String sql = "SELECT control_stock FROM inventario WHERE id_vinilo = ?";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idVinilo);
+
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                if (resultado.next()) {
+                    return resultado.getBoolean("control_stock");
+                }
+            }
+        }
+
+        return true;
+    }
 }

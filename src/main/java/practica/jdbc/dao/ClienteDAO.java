@@ -105,4 +105,25 @@ public class ClienteDAO {
             sentencia.executeUpdate();
         }
     }
+
+    public int insertarConId(Cliente cliente) throws SQLException {
+
+        String sql = "INSERT INTO cliente (nombre, apellidos, email, telefono) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+            sentencia.setString(1, cliente.getNombre());
+            sentencia.setString(2, cliente.getApellidos());
+            sentencia.setString(3, cliente.getEmail());
+            sentencia.setString(4, cliente.getTelefono());
+            sentencia.executeUpdate();
+
+            try (ResultSet claves = sentencia.getGeneratedKeys()) {
+                if (claves.next()) {
+                    return claves.getInt(1);
+                }
+            }
+        }
+
+        throw new SQLException("No se ha podido obtener el ID del cliente");
+    }
 }
