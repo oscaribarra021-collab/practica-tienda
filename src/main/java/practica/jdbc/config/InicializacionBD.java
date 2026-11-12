@@ -1,11 +1,15 @@
-
 package practica.jdbc.config;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 public class InicializacionBD {
+
+    private static final Logger log = LogManager.getLogger(InicializacionBD.class);
 
     private final ConexionBD conexionBD;
     private final ConfiguracionBD configuracionBD;
@@ -15,8 +19,12 @@ public class InicializacionBD {
         this.configuracionBD = configuracionBD;
     }
 
+    private boolean esMySQL() {
+        return "MYSQL".equals(configuracionBD.obtener("database.engine"));
+    }
+
     private String obtenerAutoincremento() {
-        if (configuracionBD.obtener("bd.tipo").equalsIgnoreCase("mysql")) {
+        if (esMySQL()) {
             return "AUTO_INCREMENT";
         }
 
@@ -91,6 +99,7 @@ public class InicializacionBD {
                     referencia VARCHAR(30) NOT NULL,
                     color VARCHAR(30) NOT NULL,
                     precio DECIMAL(8,2) NOT NULL,
+                    activo BOOLEAN NOT NULL DEFAULT TRUE,
                     PRIMARY KEY (id_vinilo),
                     UNIQUE (referencia),
                     FOREIGN KEY (id_album) REFERENCES album(id_album),
@@ -179,6 +188,8 @@ public class InicializacionBD {
                     id_inventario INT %s,
                     id_vinilo INT NOT NULL,
                     stock_actual INT NOT NULL DEFAULT 0,
+                    stock_minimo INT NOT NULL DEFAULT 3,
+                    control_stock BOOLEAN NOT NULL DEFAULT TRUE,
                     PRIMARY KEY (id_inventario),
                     UNIQUE (id_vinilo),
                     FOREIGN KEY (id_vinilo) REFERENCES vinilo(id_vinilo),
@@ -202,8 +213,25 @@ public class InicializacionBD {
                 """.formatted(autoincremento)
         };
 
+        String procedimiento = """
+                CREATE PROCEDURE resumen_cliente(
+                    IN p_id_cliente INT,
+                    OUT p_num_pedidos INT,
+                    OUT p_total_gastado DECIMAL(10,2))
+                BEGIN
+                    SELECT COUNT(*), COALESCE(SUM(total), 0)
+                    INTO p_num_pedidos, p_total_gastado
+                    FROM pedido
+                    WHERE id_cliente = p_id_cliente AND estado <> 'CANCELADO';
+                END
+                """;
+
         try (Connection conexion = conexionBD.obtenerConexion();
              Statement sentencia = conexion.createStatement()) {
+
+            if (esMySQL()) {
+                sentencia.executeUpdate("DROP PROCEDURE IF EXISTS resumen_cliente");
+            }
 
             for (String tabla : tablas) {
                 sentencia.executeUpdate("DROP TABLE IF EXISTS " + tabla);
@@ -212,6 +240,12 @@ public class InicializacionBD {
             for (String sql : sentencias) {
                 sentencia.executeUpdate(sql);
             }
+
+            if (esMySQL()) {
+                sentencia.executeUpdate(procedimiento);
+            }
+
+            log.info("Inicializacion - Estructura creada ({} tablas)", tablas.length);
         }
     }
 }
