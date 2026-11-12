@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+
+    <Properties>
+        <Property name="patron">%d{dd/MM/yyyy HH:mm:ss.SSS} %-5level %c{1} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+
+        <!-- Log activo con rotación por tamaño, .gz y límite de históricos -->
+        <RollingFile name="Runtime"
+                     fileName="logs/runtime/aplicacion.log"
+                     filePattern="logs/runtime/aplicacion-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${patron}"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 KB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+
+        <!-- Evidencia independiente por cada ejecución (fecha y hora automáticas) -->
+        <File name="Evidencia" fileName="logs/evidencias/ejecucion_${date:dd-MM-yyyy_HH-mm-ss}.log">
+            <PatternLayout pattern="${patron}"/>
+        </File>
+
+    </Appenders>
+
+    <Loggers>
+        <Logger name="practica.jdbc" level="debug"/>
+
+        <Root level="info">
+            <AppenderRef ref="Runtime"/>
+            <AppenderRef ref="Evidencia"/>
+        </Root>
+    </Loggers>
+
+</Configuration>
