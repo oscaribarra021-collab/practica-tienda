@@ -1,3 +1,4 @@
+
 package practica.jdbc.servicio;
 
 import practica.jdbc.config.ConexionBD;
@@ -5,6 +6,7 @@ import practica.jdbc.dao.InventarioDAO;
 import practica.jdbc.dao.MovimientoStockDAO;
 import practica.jdbc.datos.Inventario;
 import practica.jdbc.datos.MovimientoStock;
+import practica.jdbc.excepciones.StockInsuficienteException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -20,9 +22,7 @@ public class InventarioServicio {
 
     public void registrarEntrada(int idVinilo, int cantidad, String motivo) throws SQLException {
 
-        if (cantidad <= 0) {
-            throw new IllegalArgumentException("La cantidad debe ser mayor que cero");
-        }
+        validarMovimiento(idVinilo, cantidad, motivo);
 
         try (Connection conexion = conexionBD.obtenerConexion()) {
             conexion.setAutoCommit(false);
@@ -53,9 +53,7 @@ public class InventarioServicio {
 
     public void registrarSalida(int idVinilo, int cantidad, String motivo) throws SQLException {
 
-        if (cantidad <= 0) {
-            throw new IllegalArgumentException("La cantidad debe ser mayor que cero");
-        }
+        validarMovimiento(idVinilo, cantidad, motivo);
 
         try (Connection conexion = conexionBD.obtenerConexion()) {
             conexion.setAutoCommit(false);
@@ -67,7 +65,7 @@ public class InventarioServicio {
                 Inventario inventario = inventarioDAO.buscarPorVinilo(idVinilo);
 
                 if (inventario == null || !inventarioDAO.reducirStock(idVinilo, cantidad)) {
-                    throw new IllegalStateException("Stock insuficiente para el vinilo: " + idVinilo);
+                    throw new StockInsuficienteException("Stock insuficiente para el vinilo: " + idVinilo);
                 }
 
                 MovimientoStock movimiento = new MovimientoStock(0, idVinilo, "SALIDA", cantidad, LocalDateTime.now(), motivo);
@@ -79,6 +77,21 @@ public class InventarioServicio {
                 conexion.rollback();
                 throw e;
             }
+        }
+    }
+
+    private void validarMovimiento(int idVinilo, int cantidad, String motivo) {
+
+        if (idVinilo <= 0) {
+            throw new IllegalArgumentException("El identificador del vinilo no es válido");
+        }
+
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero");
+        }
+
+        if (motivo == null || motivo.isBlank()) {
+            throw new IllegalArgumentException("El motivo del movimiento es obligatorio");
         }
     }
 }

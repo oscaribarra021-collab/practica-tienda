@@ -1,3 +1,4 @@
+
 package practica.jdbc.servicio;
 
 import practica.jdbc.config.ConexionBD;
@@ -11,6 +12,7 @@ import practica.jdbc.dao.LineaPedidoDAO;
 import practica.jdbc.dao.InventarioDAO;
 import practica.jdbc.dao.MovimientoStockDAO;
 import practica.jdbc.dao.PagoDAO;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -26,13 +28,24 @@ public class PedidoServicio {
     }
 
     public int crearPedido(Pedido pedido, List<LineaPedido> lineas, Pago pago) throws SQLException {
+        return procesarPedido(pedido, lineas, pago, false);
+    }
+
+    public int crearPedidoConFallo(Pedido pedido, List<LineaPedido> lineas, Pago pago) throws SQLException {
+        return procesarPedido(pedido, lineas, pago, true);
+    }
+
+    private int procesarPedido(Pedido pedido, List<LineaPedido> lineas, Pago pago, boolean provocarFallo) throws SQLException {
+
+        if (pedido == null || pago == null || lineas == null || lineas.isEmpty()) {
+            throw new IllegalArgumentException("Los datos del pedido no son válidos");
+        }
 
         try (Connection conexion = conexionBD.obtenerConexion()) {
 
             conexion.setAutoCommit(false);
 
             try {
-
                 PedidoDAO pedidoDAO = new PedidoDAO(conexion);
                 LineaPedidoDAO lineaPedidoDAO = new LineaPedidoDAO(conexion);
                 InventarioDAO inventarioDAO = new InventarioDAO(conexion);
@@ -47,7 +60,7 @@ public class PedidoServicio {
                         throw new IllegalArgumentException("La cantidad debe ser mayor que cero");
                     }
 
-                    if (linea.getPrecioUnitario().compareTo(BigDecimal.ZERO) <= 0) {
+                    if (linea.getPrecioUnitario() == null || linea.getPrecioUnitario().compareTo(BigDecimal.ZERO) <= 0) {
                         throw new IllegalArgumentException("El precio debe ser mayor que cero");
                     }
 
@@ -57,6 +70,8 @@ public class PedidoServicio {
                 pedido.setTotal(total);
 
                 int idPedido = pedidoDAO.insertar(pedido);
+
+                int numeroLineas = 0;
 
                 for (LineaPedido linea : lineas) {
 
@@ -71,12 +86,20 @@ public class PedidoServicio {
 
                     LineaPedido nuevaLinea = new LineaPedido(0, idPedido, idVinilo, cantidad, linea.getPrecioUnitario());
                     lineaPedidoDAO.insertar(nuevaLinea);
+
                     MovimientoStock movimiento = new MovimientoStock(0, idVinilo, "SALIDA", cantidad, LocalDateTime.now(), "VENTA");
                     movimientoStockDAO.insertar(movimiento);
+
+                    numeroLineas++;
+
+                    if (provocarFallo && numeroLineas == 1) {
+                        throw new RuntimeException("FALLO_TRANSACCION");
+                    }
                 }
 
                 Pago nuevoPago = new Pago(0, idPedido, pago.getMetodo(), pago.getFechaPago(), total, pago.getEstado());
                 pagoDAO.insertar(nuevoPago);
+
                 conexion.commit();
 
                 return idPedido;
@@ -123,12 +146,13 @@ public class PedidoServicio {
                     }
 
                     inventarioDAO.aumentarStock(idVinilo, cantidad);
+
                     MovimientoStock movimiento = new MovimientoStock(0, idVinilo, "ENTRADA", cantidad, LocalDateTime.now(), "CANCELACION");
                     movimientoStockDAO.insertar(movimiento);
                 }
 
                 pedidoDAO.actualizarEstado(idPedido, "CANCELADO");
-                pagoDAO.actualizarEstado(idPedido, "CANCELADO");
+                pagoDAO.actualizarEstado(idPedido, "REEMBOLSADO");
 
                 conexion.commit();
 
