@@ -251,17 +251,17 @@ public class CargaInicialServicio {
 
     private void cargarInventario(Connection conexion, Map<String, Integer> vinilos) throws SQLException {
 
-        String sql = "INSERT INTO inventario (id_vinilo, stock_actual) VALUES (?, ?)";
+        String sql = "INSERT INTO inventario (id_vinilo, stock_actual, stock_minimo, control_stock) VALUES (?, ?, ?, ?)";
 
         Object[][] datos = {
-                {"PF001", 10},
-                {"BS001", 4},
-                {"MJ001", 0},
-                {"MD001", 7},
-                {"AV001", 2},
-                {"DP001", 6},
-                {"EM001", 3},
-                {"FC001", 8}
+                {"PF001", 10, 3, true},
+                {"BS001", 4, 3, true},
+                {"MJ001", 0, 3, false},
+                {"MD001", 7, 3, true},
+                {"AV001", 2, 3, true},
+                {"DP001", 6, 3, true},
+                {"EM001", 3, 3, true},
+                {"FC001", 8, 3, true}
         };
 
         try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
@@ -269,6 +269,8 @@ public class CargaInicialServicio {
             for (Object[] dato : datos) {
                 sentencia.setInt(1, vinilos.get((String) dato[0]));
                 sentencia.setInt(2, (int) dato[1]);
+                sentencia.setInt(3, (int) dato[2]);
+                sentencia.setBoolean(4, (boolean) dato[3]);
                 sentencia.addBatch();
             }
 

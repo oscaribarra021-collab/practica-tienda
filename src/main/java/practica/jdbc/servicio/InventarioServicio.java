@@ -1,11 +1,14 @@
-
 package practica.jdbc.servicio;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import practica.jdbc.config.ConexionBD;
 import practica.jdbc.dao.InventarioDAO;
 import practica.jdbc.dao.MovimientoStockDAO;
 import practica.jdbc.datos.Inventario;
 import practica.jdbc.datos.MovimientoStock;
+import practica.jdbc.excepciones.DatosInvalidosException;
+import practica.jdbc.excepciones.NegocioException;
 import practica.jdbc.excepciones.StockInsuficienteException;
 
 import java.sql.Connection;
@@ -13,6 +16,8 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 
 public class InventarioServicio {
+
+    private static final Logger log = LogManager.getLogger(InventarioServicio.class);
 
     private final ConexionBD conexionBD;
 
@@ -34,7 +39,7 @@ public class InventarioServicio {
                 Inventario inventario = inventarioDAO.buscarPorVinilo(idVinilo);
 
                 if (inventario == null) {
-                    throw new IllegalArgumentException("No existe inventario para el vinilo: " + idVinilo);
+                    throw new DatosInvalidosException("No existe inventario para el vinilo: " + idVinilo);
                 }
 
                 inventarioDAO.aumentarStock(idVinilo, cantidad);
@@ -43,9 +48,10 @@ public class InventarioServicio {
                 movimientoStockDAO.insertar(movimiento);
 
                 conexion.commit();
+                log.info("Entrada de stock vinilo={} cantidad={} motivo={}", idVinilo, cantidad, motivo);
 
             } catch (SQLException | RuntimeException e) {
-                conexion.rollback();
+                revertir(conexion, e);
                 throw e;
             }
         }
@@ -64,17 +70,23 @@ public class InventarioServicio {
 
                 Inventario inventario = inventarioDAO.buscarPorVinilo(idVinilo);
 
-                if (inventario == null || !inventarioDAO.reducirStock(idVinilo, cantidad)) {
-                    throw new StockInsuficienteException("Stock insuficiente para el vinilo: " + idVinilo);
+                if (inventario == null) {
+                    throw new DatosInvalidosException("No existe inventario para el vinilo: " + idVinilo);
+                }
+
+                if (!inventarioDAO.reducirStock(idVinilo, cantidad)) {
+                    throw new StockInsuficienteException("Stock insuficiente para el vinilo " + idVinilo
+                            + ": hay " + inventario.getStockActual() + " y se piden " + cantidad);
                 }
 
                 MovimientoStock movimiento = new MovimientoStock(0, idVinilo, "SALIDA", cantidad, LocalDateTime.now(), motivo);
                 movimientoStockDAO.insertar(movimiento);
 
                 conexion.commit();
+                log.info("Salida de stock vinilo={} cantidad={} motivo={}", idVinilo, cantidad, motivo);
 
             } catch (SQLException | RuntimeException e) {
-                conexion.rollback();
+                revertir(conexion, e);
                 throw e;
             }
         }
@@ -83,15 +95,27 @@ public class InventarioServicio {
     private void validarMovimiento(int idVinilo, int cantidad, String motivo) {
 
         if (idVinilo <= 0) {
-            throw new IllegalArgumentException("El identificador del vinilo no es válido");
+            throw new DatosInvalidosException("El identificador del vinilo no es válido");
         }
 
         if (cantidad <= 0) {
-            throw new IllegalArgumentException("La cantidad debe ser mayor que cero");
+            throw new DatosInvalidosException("La cantidad debe ser mayor que cero");
         }
 
         if (motivo == null || motivo.isBlank()) {
-            throw new IllegalArgumentException("El motivo del movimiento es obligatorio");
+            throw new DatosInvalidosException("El motivo del movimiento es obligatorio");
         }
+    }
+
+    private void revertir(Connection conexion, Exception e) throws SQLException {
+
+        if (e instanceof NegocioException) {
+            log.warn("Regla de negocio incumplida; se revierte la transacción: {}", e.getMessage());
+        } else {
+            log.error("Error técnico; se revierte la transacción: {}", e.getMessage());
+        }
+
+        conexion.rollback();
+        log.info("Rollback completado");
     }
 }
